@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  redaptive-python-lambda-template
+Globals:
+  Function:
+    Timeout: 30
+
+Resources:
+
+  RedaptivePythonLambdaTemplateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      PackageType: Image
+      ImageConfig:
+        Command: main.handler
+      Timeout: 900
+      MemorySize: 1024
+      Environment:
+        Variables:
+          EXAMPLE_ENVIRONMENT_VARIABLE: 
+    Metadata:
+      Dockerfile: docker/Dockerfile
+      DockerContext: "."
+      DockerTag: v1
+
+Outputs:
+
+  RedaptivePythonLambdaTemplateFunction:
+    Description: "Redaptive Python Lambda Template Function ARN"
+    Value: !GetAtt RedaptivePythonLambdaTemplateFunction.Arn

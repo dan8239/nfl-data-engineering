@@ -1,0 +1,114 @@
+---
+version: 2.1
+orbs:
+  python: circleci/python@0.1
+  aws-ecr: circleci/aws-ecr@6.7.0
+
+
+description: Deploy Python lambda
+jobs:
+  build:
+    executor: python/default
+    working_directory: ~/repo
+    steps:
+      - checkout
+      - run: sudo apt-get install tree
+      - run: tree ..
+      - persist_to_workspace:
+          root: ~/
+          paths:
+            - repo
+
+  test:
+    executor: python/default
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: ~/
+      - run:
+          name: install tree
+          command: sudo apt-get install tree
+      - run:
+          name: install requirements
+          command: sudo pip3 install -r requirements.txt
+      - run: 
+          name: circleci full tree
+          command: tree ....
+      - run: 
+          name: change directory run tests
+          command: |
+            cd src
+            pwd
+            python3 -m unittest discover ..
+
+  deploy:
+    executor: python/default
+    working_directory: ~/repo
+    steps:
+      - attach_workspace:
+          at: ~/
+      - run: echo "export SHORT_GIT_HASH=$(echo $CIRCLE_SHA1 | cut -c -7)" >> $BASH_ENV 
+      - aws-ecr/build-and-push-image:
+          dockerfile: docker/Dockerfile
+          path: .
+          repo: peet-${ENVIRONMENT}-ecr
+          tag: ${SHORT_GIT_HASH}
+          setup-remote-docker: true
+      - run: sudo pip3 install deploy-lambda-functions~=1.0.5 --upgrade
+      - run: deploy-lambda-functions -c ./config/${ENVIRONMENT}.env
+
+workflows:
+  version: 2
+  build_artifact:
+    jobs:
+      - build:
+          filters:
+            tags:
+              ignore: /.*/
+      - test:
+          filters:
+            tags:
+              ignore: /.*/
+          requires:
+           - build
+
+  deploy_to_dev:
+    jobs:
+      - build:
+          filters: &dev_filters
+            branches:
+              ignore: /.*/
+            tags:
+              only: /^.*-dev\d+$/
+      - test:
+          filters:
+            tags:
+              ignore: /.*/
+          requires:
+           - build
+      - deploy:
+          context: dev
+          filters: *dev_filters
+          requires:
+            - build
+            - test
+
+  deploy_to_prod:
+    jobs:
+      - build:
+          filters: &prod_filters
+            branches:
+             ignore: /.*/
+            tags:
+              only: /^\d+\.\d+\.\d+$/
+      - test:
+          filters:
+            tags:
+              ignore: /.*/
+          requires:
+           - build
+      - deploy:
+          context: prod
+          filters: *prod_filters
+          requires:
+            - build
