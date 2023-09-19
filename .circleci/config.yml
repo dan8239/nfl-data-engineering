@@ -1,6 +1,7 @@
 ---
 version: 2.1
 orbs:
+  node: circleci/node@5.0.0
   python: circleci/python@0.1
   aws-ecr: circleci/aws-ecr@6.7.0
 
@@ -30,16 +31,19 @@ jobs:
           command: sudo apt-get install tree
       - run:
           name: install requirements
-          command: sudo pip3 install -r requirements.txt
-      - run: 
+          command: pip3 install -r requirements.txt
+          extra-build-args: --build-arg GITHUB_READ_TOKEN=${GITHUB_READ_TOKEN}
+      - run:
           name: circleci full tree
           command: tree ....
-      - run: 
+      - run:
           name: change directory run tests
           command: |
             cd src
             pwd
             python3 -m unittest discover ..
+      - store_test_results:
+          path: test-results
 
   deploy:
     executor: python/default
@@ -47,13 +51,14 @@ jobs:
     steps:
       - attach_workspace:
           at: ~/
-      - run: echo "export SHORT_GIT_HASH=$(echo $CIRCLE_SHA1 | cut -c -7)" >> $BASH_ENV 
+      - run: echo "export SHORT_GIT_HASH=$(echo $CIRCLE_SHA1 | cut -c -7)" >> $BASH_ENV
       - aws-ecr/build-and-push-image:
           dockerfile: docker/Dockerfile
           path: .
-          repo: peet-${ENVIRONMENT}-ecr
+          repo: utility-bill-disaggregator-${ENVIRONMENT}-ecr
           tag: ${SHORT_GIT_HASH}
           setup-remote-docker: true
+          extra-build-args: --build-arg GITHUB_READ_TOKEN
       - run: sudo pip3 install deploy-lambda-functions~=1.0.5 --upgrade
       - run: deploy-lambda-functions -c ./config/${ENVIRONMENT}.env
 
@@ -66,6 +71,7 @@ workflows:
             tags:
               ignore: /.*/
       - test:
+          context: global
           filters:
             tags:
               ignore: /.*/
@@ -81,13 +87,16 @@ workflows:
             tags:
               only: /^.*-dev\d+$/
       - test:
+          context: global
           filters:
             tags:
               ignore: /.*/
           requires:
            - build
       - deploy:
-          context: dev
+          context:
+            - global
+            - dev
           filters: *dev_filters
           requires:
             - build
@@ -102,13 +111,16 @@ workflows:
             tags:
               only: /^\d+\.\d+\.\d+$/
       - test:
+          context: global
           filters:
             tags:
               ignore: /.*/
           requires:
            - build
       - deploy:
-          context: prod
+          context:
+            - global
+            - prod
           filters: *prod_filters
           requires:
             - build

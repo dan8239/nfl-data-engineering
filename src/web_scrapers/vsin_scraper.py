@@ -109,6 +109,17 @@ def __get_col_titles(headers):
     return full_col_names, game_date
 
 
+def __rename_duplicate_columns(df):
+    cols = pd.Series(df.columns)
+    for dup in df.columns[df.columns.duplicated(keep=False)]:
+        cols[df.columns.get_loc(dup)] = [
+            dup + "_" + str(d_idx) if d_idx != 0 else dup
+            for d_idx in range(sum(df.columns == dup))
+        ]
+    df.columns = cols
+    return df
+
+
 def __element_filter(tag):
     return (
         tag.get("role") != "button"
@@ -153,6 +164,7 @@ def __vsin_table_to_df(table):
                                     home_data.append(string)
                     full_data.append([game_date] + away_data + home_data)
         df = pd.DataFrame(data=full_data, columns=full_col_names)
+        df = __rename_duplicate_columns(df)
         set_timestamp.set_timestamp()
         df["timestamp"] = config.TIMESTAMP
     else:
@@ -201,11 +213,11 @@ async def get_vsin_game_lines():
         df = await __get_vsin_game_lines_one_sport(page, sport_name=sport)
         if not df.empty:
             df.to_csv(
-                f"../output/game_lines/{config.TIMESTAMP}_{sport}_lines.csv",
+                f"output/game_lines/{config.TIMESTAMP}_{sport}_lines.csv",
                 index=False,
             )
             df_list.append(df)
     df = pd.concat(df_list)
-    df.to_csv(f"../output/game_lines/all_lines.csv")
+    df.to_csv(f"output/game_lines/all_lines.csv")
     await browser.close()
     return df
