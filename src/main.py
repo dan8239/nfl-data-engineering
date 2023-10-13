@@ -1,9 +1,11 @@
 import asyncio
-from web_scrapers import vsin_scraper
+
+from web_scrapers import team_rankings_scraper
 
 
 async def run():
-    df = await vsin_scraper.get_vsin_game_lines()
+    # df = await vsin_scraper.get_vsin_game_lines()
+    df = team_rankings_scraper.get_predictive_rankings()
     print(df)
 
 
