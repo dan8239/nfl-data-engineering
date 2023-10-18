@@ -1,11 +1,13 @@
 import asyncio
 
-from web_scrapers import team_rankings_scraper
+from web_scrapers.team_rankings import predictive_rankings_scraper
 
 
 async def run():
     # df = await vsin_scraper.get_vsin_game_lines()
-    df = team_rankings_scraper.get_predictive_rankings()
+    date = "10-15-2023"
+    scr = predictive_rankings_scraper.PredictiveRankingsScraper()
+    df = scr.get_table(date=date)
     print(df)
 
 
