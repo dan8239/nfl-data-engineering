@@ -1,8 +1,10 @@
-import pyppeteer
-import dotenv
 import os
+
+import dotenv
 import pandas as pd
+import pyppeteer
 from bs4 import BeautifulSoup
+
 import config
 import set_timestamp
 
@@ -14,7 +16,7 @@ sport_list = [
     "nfl",
     "nba",
     "mlb",
-    "golf/pga",
+    # "golf/pga",
 ]
 api_key = os.environ.get("BROWSERLESS_API_KEY")
 vsin_user = os.environ.get("VSIN_USER")
@@ -130,8 +132,8 @@ def __element_filter(tag):
         and (
             "text-center" in tag.get("class", [])
             and "fw-bold" in tag.get("class", [])
-            and not "box_highlight_for" in tag.get("class", [])
-            and not "box_highlight_agn" in tag.get("class", [])
+            and "box_highlight_for" not in tag.get("class", [])
+            and "box_highlight_agn" not in tag.get("class", [])
         )
         or ("scorebox_highlight" in tag.get("class", []))
     )
@@ -152,7 +154,7 @@ def __vsin_table_to_df(table):
                 away_data = []
                 home_data = []
                 # check that it's not the header row
-                if not "Betting Splits" in row.text:
+                if "Betting Splits" not in row.text:
                     cells = row.find_all("td")
                     for cell in cells:
                         good_data = cell.find_all(__element_filter)
@@ -213,11 +215,11 @@ async def get_vsin_game_lines():
         df = await __get_vsin_game_lines_one_sport(page, sport_name=sport)
         if not df.empty:
             df.to_csv(
-                f"output/game_lines/{config.TIMESTAMP}_{sport}_lines.csv",
+                f"../output/game_lines/{config.TIMESTAMP}_{sport}_lines.csv",
                 index=False,
             )
             df_list.append(df)
     df = pd.concat(df_list)
-    df.to_csv(f"output/game_lines/all_lines.csv")
+    df.to_csv("../output/game_lines/all_lines.csv")
     await browser.close()
     return df
