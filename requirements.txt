@@ -8,6 +8,7 @@ charset-normalizer==3.2.0
 click==8.0.1
 colorama==0.4.6
 distlib==0.3.7
+et-xmlfile==1.1.0
 filelock==3.12.4
 flake8==3.9.2
 html5lib==1.1
@@ -20,6 +21,7 @@ mccabe==0.6.1
 mypy-extensions==1.0.0
 nodeenv==1.8.0
 numpy==1.26.0
+openpyxl==3.1.2
 pandas==2.1.1
 pathspec==0.8.1
 platformdirs==3.11.0
