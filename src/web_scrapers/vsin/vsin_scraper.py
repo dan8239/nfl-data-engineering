@@ -6,7 +6,7 @@ import pyppeteer
 from bs4 import BeautifulSoup
 
 import config
-import set_timestamp
+import src.helpers.set_timestamp as set_timestamp
 
 dotenv.load_dotenv()
 base_url = "https://data.vsin.com/{}/betting-splits/"

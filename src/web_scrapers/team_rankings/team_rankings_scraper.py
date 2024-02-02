@@ -1,7 +1,9 @@
 import os
 import ssl
+from datetime import datetime
 
 import pandas as pd
+from dateutil.relativedelta import relativedelta
 
 
 class TeamRankingsScraper:
@@ -9,9 +11,8 @@ class TeamRankingsScraper:
         print()
         print(os.getcwd())
         ssl._create_default_https_context = ssl._create_unverified_context
-        self.url_df = pd.read_excel(
-            "web_scrapers/team_rankings/urls_team_rankings.xlsx"
-        )
+        url_df = pd.read_excel("web_scrapers/team_rankings/urls_team_rankings.xlsx")
+        self.url_df = url_df.fillna("")
 
     def _strip_team_names(self, df):
         """
@@ -28,10 +29,28 @@ class TeamRankingsScraper:
         return df
 
     def _add_date_to_df(self, df, date):
-        df["date"] = date
+        """add a column representing the date in the 2nd column (after team)
+
+        Args:
+            df (pd.DataFrame): df to transform
+            date (str): YYYY-MM-DD
+
+        Returns:
+            pd.DataFrame: transformed df
+        """
+        df.insert(1, "date", date)
         return df
 
     def _split_win_loss(self, df, columns):
+        """change values in W-L columns from 1-1 to three columns, wins, losses, and total games
+
+        Args:
+            df (pd.DataFrame): dataframe to transform
+            columns (list(str)): columns to split
+
+        Returns:
+            pd.DataFrame: transformed df
+        """
         for col in columns:
             df[[f"{col}_wins", f"{col}_losses"]] = df[col].str.split("-", expand=True)
             df[[f"{col}_wins", f"{col}_losses"]] = df[
@@ -42,10 +61,28 @@ class TeamRankingsScraper:
         return df
 
     def _col_names_to_lower_case(self, df):
+        """change formatting to all lower case on column names
+
+        Args:
+            df (pd.DataFrame): dataframe to transform
+
+        Returns:
+            pd.DataFrame: transformed df
+        """
         df.columns = map(str.lower, df.columns)
         return df
 
     def _add_prefixes_to_col_names(self, df, prefix, cols_to_process):
+        """Add prefix to all column names given on a dataframe
+
+        Args:
+            df (pd.DataFrame): dataframe to transform
+            prefix (str): prefix to add to column names
+            cols_to_process (list(str)): columns to change names of
+
+        Returns:
+            pd.DataFrame: transformed df
+        """
         df = df.rename(
             columns={
                 col: prefix + col if col in cols_to_process else col
@@ -55,7 +92,56 @@ class TeamRankingsScraper:
         return df
 
     def _drop_spaces_in_col_names(self, df):
+        """remove spaces in naming convention
+
+        Args:
+            df (pd.DataFrame): dataframe to transform
+
+        Returns:
+            pd.DataFrame: transformed dataframe
+        """
         df.columns = df.columns.str.replace(" ", "")
+        return df
+
+    def _replace_year_placeholders(self, df, date, cols):
+        """replace the f-string year and last year brackets on the url df
+
+        Args:
+            df (pd.DataFrame): dataframe to transform
+            date (str): "YYYY-MM-DD"
+            cols (list(str)): columns to replace
+
+        Returns:
+            _type_: _description_
+        """
+        this_year_datetime = datetime.strptime(date, "%Y-%m-%d")
+        last_year_datetime = this_year_datetime - relativedelta(years=1)
+        replace_dct = {
+            "year": str(this_year_datetime.year),
+            "last_year": str(last_year_datetime.year),
+        }
+
+        def replace_placeholders(text):
+            return text.format(**replace_dct)
+
+        for col in cols:
+            # Apply the replacement function to the DataFrame column
+            df[col] = df[col].apply(replace_placeholders)
+        return df
+
+    def _replace_null_markers(self, df):
+        string_columns = df.select_dtypes(include="object").columns
+        df[string_columns] = df[string_columns].replace("--", "", regex=True)
+        return df
+
+    def _replace_percentage_strings(self, df):
+        def replace_percentage_strings(value):
+            if isinstance(value, str) and "%" in value:
+                return float(value.rstrip("%")) / 100.0
+            else:
+                return value
+
+        df = df.applymap(replace_percentage_strings)
         return df
 
     def __get_table(
@@ -92,13 +178,19 @@ class TeamRankingsScraper:
         return df
 
     def get_all_tables_for_date(self, date):
-        """_summary_
+        """get all the table data for a single date
 
         Args:
-            date (_type_): _description_
+            date (str): YYYY-MM-DD
+
+        Returns:
+            pd.DataFrame: data for all teams on one date in DF
         """
         all_stats_df = pd.DataFrame()
-        for i, row in self.url_df.iterrows():
+        url_df = self._replace_year_placeholders(
+            df=self.url_df, date=date, cols=["cols_to_keep"]
+        )
+        for i, row in url_df.iterrows():
             keep_cols = [
                 element.strip()
                 for element in row.cols_to_keep.split(",")
@@ -123,5 +215,10 @@ class TeamRankingsScraper:
                 all_stats_df = pd.merge(
                     left=all_stats_df, right=df, how="left", on="team"
                 )
-        all_stats_df = self._add_date_to_df(df, date)
+                print(all_stats_df.shape)
+        all_stats_df = self._add_date_to_df(all_stats_df, date)
+        all_stats_df = self._replace_null_markers(all_stats_df)
+        all_stats_df = self._replace_percentage_strings(all_stats_df)
+        print(all_stats_df.shape)
+        all_stats_df.to_excel("../output/tr_all_stats.xlsx", index=False)
         return all_stats_df
