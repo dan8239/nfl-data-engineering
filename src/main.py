@@ -5,7 +5,7 @@ from web_scrapers.team_rankings import team_rankings_scraper
 
 async def run():
     # df = await vsin_scraper.get_vsin_game_lines()
-    date = "10-15-2023"
+    date = "2023-10-15"
     scr = team_rankings_scraper.TeamRankingsScraper()
     df = scr.get_all_tables_for_date(date=date)
     print(df)
