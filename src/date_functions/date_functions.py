@@ -1,26 +1,22 @@
-from datetime import datetime, timedelta
+from datetime import datetime
+
+import pandas as pd
 
 
-def get_wednesdays(start_month, start_year, end_month, end_year):
-    """
-
-    get all dates that are wednesday between certain year/months
+def filter_dates(start_date_str, day_of_week):
+    """_summary_
 
     Args:
-        start_month (int):
-        start_year (int):
-        end_month (int):
-        end_year (int):
+        start_date_str (_type_): _description_
+        input_day_of_week (_type_): _description_
 
     Returns:
-        list(str): list of wednesday dates
+        _type_: _description_
     """
-    wednesdays = []
-    current_date = datetime(start_year, start_month, 1)
-
-    while current_date < datetime(end_year, end_month, 1):
-        if current_date.weekday() == 2:  # Wednesday has the index 2
-            wednesdays.append(current_date.strftime("%Y-%m-%d"))
-        current_date += timedelta(days=1)
-
-    return wednesdays
+    start_date = pd.to_datetime(start_date_str)
+    date_index = pd.date_range(start_date, datetime.now(), freq="D")
+    df = pd.DataFrame(index=date_index)
+    df["day_of_week"] = df.index.day_name()
+    df["in_season"] = ((df.index.month >= 8) | (df.index.month <= 2)).astype(int)
+    filtered_dates = df[(df["day_of_week"] == day_of_week) & (df["in_season"] == 1)]
+    return filtered_dates.index
