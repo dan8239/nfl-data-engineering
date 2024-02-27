@@ -1,8 +1,8 @@
 import asyncio
-import os
 
 import pandas as pd
 
+from box_scores import game_collector
 from date_functions import date_functions
 from web_scrapers.team_rankings import team_rankings_scraper
 
@@ -34,14 +34,5 @@ def handler(event, context):
 
 if __name__ == "__main__":
     # handler(event=None, context=None)
-    df_list = []
-    for file in os.listdir("../output"):
-        if file.endswith("xlsx"):
-            path = f"../output/{file}"
-            print(f"reading {path}")
-            df = pd.read_excel(path)
-            df_list.append(df)
-    df = pd.concat(df_list)
-    df.drop_duplicates(subset=["date", "team"], inplace=True)
-    df.sort_values(by=["date", "team"], ascending=False)
-    df.to_excel("../output/full_stats.xlsx", index=False)
+    gc = game_collector.GameCollector()
+    gc.collect()
