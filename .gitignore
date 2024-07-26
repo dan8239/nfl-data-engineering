@@ -193,7 +193,6 @@ cython_debug/
 *.xlsx
 *.csv
 *.env
-*.ipynb
 .vscode
 input
 output
