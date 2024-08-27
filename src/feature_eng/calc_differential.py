@@ -1,6 +1,6 @@
 import pandas as pd
 
-performance_mapping_df = pd.read_csv("reference/performance_differential_columns.csv")
+performance_mapping_df = pd.read_csv("reference/performance_differential_colums.csv")
 
 
 def _calc_differential(df1, df2, mapping_df):
