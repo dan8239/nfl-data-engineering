@@ -29,10 +29,23 @@ valid_team_names = pd.read_csv("reference/team_ids.csv")[
 ].unique()
 
 
-def preprocess(df):
+def __filter_samples(df):
     # remove all star BS
     home_mask = df["home_short_display_name"].isin(valid_team_names)
     away_mask = df["away_short_display_name"].isin(valid_team_names)
     df = df[home_mask & away_mask]
     # remove preseason
     df = df[df["season_type"] != 1]
+    df = df[df["status_type_completed"]]
+    return df
+
+
+def preprocess(df):
+    df = __filter_samples(df)
+    df["game_datetime"] = pd.to_datetime(df["start_date"])
+    df["game_time_hrs"] = (
+        df["game_datetime"].dt.hour
+        + df["game_datetime"].dt.minute / 60
+        + df["game_datetime"].dt.second / 3600
+    )
+    return df
