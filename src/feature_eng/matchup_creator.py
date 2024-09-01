@@ -1,6 +1,11 @@
+import importlib
+
 import pandas as pd
 
 from feature_eng import calc_differential, team_data_aggregator
+
+importlib.reload(team_data_aggregator)
+importlib.reload(calc_differential)
 
 
 class MatchupCreator:
@@ -12,16 +17,22 @@ class MatchupCreator:
         self.road_stats = None
         self.diff_stats = None
 
-    def create_matchup(self, home_team_merge_id, road_team_merge_id, date):
+    def create_matchup(
+        self,
+        game_id,
+        home_team_box_short_display_name,
+        away_team_box_short_display_name,
+        date,
+    ):
         """
         create a matchup given a date and two team ID's. This includes all the features that are needed for a model to learn on
 
         Parameters
         ----------
-        home_team_merge_id : int
-            ID of the team that is playing at home (merge_id from ref table)
-        road_team_merge_id : int
-            ID of the team that is playing on the road (merge_id from ref table)
+        home_team_box_short_display_name : str
+            ID of the team that is playing at home (box from ref table)
+        away_team_box_short_display_name : str
+            ID of the team that is playing on the road (box id from ref table)
         date: str
             date the game is being played
 
@@ -30,17 +41,19 @@ class MatchupCreator:
         pd.DataFrame
             dataframe w/ all the data collected and feature engineered
         """
-        print("creating matchup")
+        print(
+            f"creating matchup for {date}, {away_team_box_short_display_name} @ {home_team_box_short_display_name}"
+        )
         home_perf_summary_df = self.tda.summarize_team(
             date=date,
-            team_merge_id=home_team_merge_id,
+            team_box_short_display_name=home_team_box_short_display_name,
             games_to_sample=self.games_to_sample,
             aggregation_method=self.aggregation_method,
         )
         self.home_stats = home_perf_summary_df
         road_perf_summary_df = self.tda.summarize_team(
             date=date,
-            team_merge_id=road_team_merge_id,
+            team_box_short_display_name=away_team_box_short_display_name,
             games_to_sample=self.games_to_sample,
             aggregation_method=self.aggregation_method,
         )
@@ -54,4 +67,5 @@ class MatchupCreator:
         combined_matchup_df = pd.concat(
             [home_perf_summary_df, road_perf_summary_df, perf_diff_df], axis=1
         )
+        combined_matchup_df["game_id"] = game_id
         return combined_matchup_df

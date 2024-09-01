@@ -26,7 +26,7 @@ def _calc_differential(df1, df2, mapping_df):
     pd.DataFrame
         A DataFrame containing the differences with column names from df1.
     """
-    diff_df = pd.DataFrame()
+    diff_dict = {}
 
     for _, row in mapping_df.iterrows():
         df1_col = row["home_stat"]
@@ -34,12 +34,12 @@ def _calc_differential(df1, df2, mapping_df):
 
         # Check if both columns exist in their respective DataFrames
         if df1_col in df1.columns and df2_col in df2.columns:
-            diff_df[df1_col + "_matchup_differential"] = df1[df1_col] - df2[df2_col]
+            diff_dict[df1_col + "_matchup_differential"] = df1[df1_col] - df2[df2_col]
         else:
             raise KeyError(
                 f"Column '{df1_col}' or '{df2_col}' not found in the respective DataFrames"
             )
-
+    diff_df = pd.DataFrame(diff_dict)
     return diff_df
 
 

@@ -43,9 +43,5 @@ def __filter_samples(df):
 def preprocess(df):
     df = __filter_samples(df)
     df["game_datetime"] = pd.to_datetime(df["start_date"])
-    df["game_time_hrs"] = (
-        df["game_datetime"].dt.hour
-        + df["game_datetime"].dt.minute / 60
-        + df["game_datetime"].dt.second / 3600
-    )
+    df = df.sort_values(by="game_datetime")
     return df

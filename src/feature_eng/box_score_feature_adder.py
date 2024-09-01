@@ -2,6 +2,7 @@ import importlib
 
 import numpy as np
 import pandas as pd
+import pytz
 
 from geo import calc_distance
 
@@ -15,6 +16,7 @@ class BoxScoreFeatureAdder:
         stadium_df = pd.read_csv("reference/stadiums.csv")
         stadium_df["latitude"] = stadium_df["latitude"].astype(float)
         stadium_df["longitude"] = stadium_df["longitude"].astype(float)
+        stadium_df["venue_id"] = stadium_df["venue_id"].astype(float)
         self.stadium_df = stadium_df
 
     def __add_location_info(self, df, prefix):
@@ -36,8 +38,23 @@ class BoxScoreFeatureAdder:
             how="left",
             left_on=left_merge_col,
             right_on="venue_id",
+            suffixes=("", "_drop"),
         )
+        df.drop(columns=[col for col in df if col.endswith("_drop")], inplace=True)
         self.processed_df = df
+        return df
+
+    def __add_local_time(self, df):
+        print("adding local time")
+        df["local_gametime"] = df.apply(
+            lambda row: row["game_datetime"].tz_convert(pytz.timezone(row["timezone"])),
+            axis=1,
+        )
+        df["game_time_hrs"] = df["local_gametime"].apply(
+            lambda x: (x.hour if pd.notna(x) else 0)
+            + (x.minute if pd.notna(x) else 0) / 60
+            + (x.second if pd.notna(x) else 0) / 3600
+        )
         return df
 
     def __add_travel_distance(self, df):
@@ -96,11 +113,10 @@ class BoxScoreFeatureAdder:
 
     def __add_spread_covers(self, df):
         print("adding spread results")
-        for spread in np.arange(-20, 20.5, 0.5):
-            print(spread)
+        for spread in np.arange(20, -20.5, -0.5):
             prefix = ""
             if spread > 0:
-                prefix = "neg"
+                prefix = "+"
             df[f"{prefix}{spread}_home_cover"] = (
                 df["score_differential"] + spread
             ) >= 0
@@ -109,10 +125,11 @@ class BoxScoreFeatureAdder:
     def __add_total_covers(self, df):
         print("adding totals results")
         for total in np.arange(20, 60, 0.5):
-            df[f"{total}total_over_hits"] = df["total_score"] >= total
+            df[f"{total}_total_over_hits"] = df["total_score"] >= total
         return df
 
     def add_features(self, df):
+        df["venue_id"].fillna(df["home_venue_id"], inplace=True)
         for prefix in [None, "home", "away"]:
             df = self.__add_location_info(df, prefix)
             if prefix is not None:
@@ -122,7 +139,7 @@ class BoxScoreFeatureAdder:
         df["timezones_traveled_delta"] = (
             df["home_timezones_traveled"] - df["away_timezones_traveled"]
         )
-        print(df.isnull().mean())
+        df = self.__add_local_time(df)
         df = self.__add_travel_distance(df)
         df = self.__add_days_rest(df)
         df = self.__add_box_totals(df)

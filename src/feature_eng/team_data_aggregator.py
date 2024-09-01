@@ -21,7 +21,7 @@ class TeamDataAggregator:
         ]
         self.sample = None
 
-    def __pull_stats_for_team(self, date, team_merge_id, games_to_sample):
+    def __pull_stats_for_team(self, date, team_box_short_display_name, games_to_sample):
         """
         Pull all rows from the stat_db that correspond to the team ID. Filter the stats for rows prior to the date in question.
         Pull 2x the number of games to keep, then drop duplicates and filter for the most recent x games_to_keep.
@@ -30,7 +30,7 @@ class TeamDataAggregator:
         ----------
         date : datetime
             The cutoff date. Only stats prior to this date will be considered.
-        team_merge_id : str or int
+        team_box_short_display_name : str
             The unique identifier for the team in the stat_db.
         games_to_sample : int
             The number of most recent games to return after filtering.
@@ -40,9 +40,9 @@ class TeamDataAggregator:
         DataFrame
             A DataFrame containing the stats for the most recent games_to_sample games for the specified team.
         """
-        tr_team_name = get_team_id.get_ids(merge_team_id=team_merge_id).get(
-            "tr_team_name"
-        )
+        tr_team_name = get_team_id.get_ids(
+            box_short_display_name=team_box_short_display_name
+        ).get("tr_team_name")
         team_stats = self.stats_db[
             (self.stats_db["team"] == tr_team_name) & (self.stats_db["date"] < date)
         ]
@@ -83,7 +83,11 @@ class TeamDataAggregator:
         return aggregated_data.to_frame().T
 
     def summarize_team(
-        self, date, team_merge_id, games_to_sample, aggregation_method="mean"
+        self,
+        date,
+        team_box_short_display_name,
+        games_to_sample,
+        aggregation_method="mean",
     ):
         """
         Pull all rows from the stat_db that correspond to the team ID. Filter the stats for rows prior to the date in question. Pull 2x the number of games to keep, then drop duplicates and filter for the most recent x games_to_keep. Finally, summarize all the stats over that time period using an average mechanism
@@ -92,7 +96,7 @@ class TeamDataAggregator:
         ----------
         date : _type_
             _description_
-        team_merge_id : _type_
+        team_box_short_display_name : str
             _description_
         games_to_sample : _type_
             _description_
@@ -100,7 +104,9 @@ class TeamDataAggregator:
             _description_
         """
         stats_df = self.__pull_stats_for_team(
-            date=date, team_merge_id=team_merge_id, games_to_sample=games_to_sample
+            date=date,
+            team_box_short_display_name=team_box_short_display_name,
+            games_to_sample=games_to_sample,
         )
         aggregated_stats = self.__aggregate_team_stats(
             stat_df=stats_df, aggregation_method=aggregation_method

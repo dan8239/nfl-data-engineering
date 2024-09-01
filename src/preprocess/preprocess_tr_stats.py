@@ -222,7 +222,7 @@ stat_cols = [
 def preprocess(df):
     df.columns = [col.replace("_last1", "") for col in df.columns]
     df = df[stat_cols].copy()
-    df["date"] = pd.to_datetime(df["date"])
+    df["date"] = pd.to_datetime(df["date"]).dt.tz_localize("UTC")
     df["offense_total_time_of_possession"].fillna("30:00", inplace=True)
     df["defense_total_time_of_possession"].fillna("30:00", inplace=True)
     for col in ["offense_total_time_of_possession", "defense_total_time_of_possession"]:
