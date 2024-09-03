@@ -2,9 +2,9 @@ import asyncio
 
 import pandas as pd
 
-from box_scores import game_collector
+from data_collectors import game_collector
+from data_collectors.team_rankings import team_rankings_scraper
 from date_functions import date_functions
-from web_scrapers.team_rankings import team_rankings_scraper
 
 
 async def run():

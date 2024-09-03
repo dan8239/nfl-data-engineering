@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 
 from helpers import get_team_id
@@ -55,7 +56,9 @@ class TeamDataAggregator:
         self.sample = final_stats
         return final_stats
 
-    def __aggregate_team_stats(self, stat_df, aggregation_method="mean"):
+    def __aggregate_team_stats(
+        self, stat_df, aggregation_method="exp_weighted_mean", decay_factor=0.9
+    ):
         """
         Take the stats dataframe and aggregate over all of the rows. Don't aggregate columns in the self.dont_aggregate_columns list,
         but just keep the most recent value. Make sure that we're ignoring NaNs when doing the aggregation.
@@ -65,29 +68,53 @@ class TeamDataAggregator:
         stat_df : DataFrame
             The DataFrame containing the stats to be aggregated.
         aggregation_method : str
-            The aggregation method to apply (e.g., 'mean').
+            The aggregation method to apply (e.g., 'mean', 'exp_weighted_mean').
+        decay_factor : float
+            The decay factor for the exponential weighting. Should be between 0 and 1.
 
         Returns
         -------
         DataFrame
             A single-row DataFrame containing the aggregated statistics.
         """
-        agg_columns = [
-            col for col in stat_df.columns if col not in self.dont_aggregate_columns
-        ]
-        aggregated_data = stat_df[agg_columns].agg(aggregation_method, skipna=True)
-        for col in self.dont_aggregate_columns:
-            if col in stat_df.columns:
-                aggregated_data[col] = stat_df[col].iloc[0]
 
-        return aggregated_data.to_frame().T
+        # Define the exponential weighted mean function
+        def exp_weighted_mean(x):
+            n = len(x)
+            weights = np.array([decay_factor ** (n - i - 1) for i in range(n)])
+            return np.average(x, weights=weights)
+
+        if not stat_df.empty:
+            agg_columns = [
+                col for col in stat_df.columns if col not in self.dont_aggregate_columns
+            ]
+
+            if aggregation_method == "exp_weighted_mean":
+                # Apply the exponential weighted mean, ignoring NaNs
+                aggregated_data = stat_df[agg_columns].apply(
+                    lambda x: exp_weighted_mean(x)
+                )
+            else:
+                # Use the specified method (e.g., mean) if not exp_weighted_mean
+                aggregated_data = stat_df[agg_columns].agg(
+                    aggregation_method, skipna=True
+                )
+
+            for col in self.dont_aggregate_columns:
+                if col in stat_df.columns:
+                    aggregated_data[col] = stat_df[col].iloc[0]
+            df = aggregated_data.to_frame().T
+        else:
+            df = stat_df
+        return df
 
     def summarize_team(
         self,
         date,
         team_box_short_display_name,
         games_to_sample,
-        aggregation_method="mean",
+        aggregation_method="exp_weighted_mean",
+        decay_factor=0.9,
     ):
         """
         Pull all rows from the stat_db that correspond to the team ID. Filter the stats for rows prior to the date in question. Pull 2x the number of games to keep, then drop duplicates and filter for the most recent x games_to_keep. Finally, summarize all the stats over that time period using an average mechanism
@@ -109,6 +136,8 @@ class TeamDataAggregator:
             games_to_sample=games_to_sample,
         )
         aggregated_stats = self.__aggregate_team_stats(
-            stat_df=stats_df, aggregation_method=aggregation_method
+            stat_df=stats_df,
+            aggregation_method=aggregation_method,
+            decay_factor=decay_factor,
         )
         return aggregated_stats

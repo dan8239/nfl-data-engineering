@@ -44,4 +44,6 @@ def preprocess(df):
     df = __filter_samples(df)
     df["game_datetime"] = pd.to_datetime(df["start_date"])
     df = df.sort_values(by="game_datetime")
+    df["year"] = df["game_datetime"].dt.year
+    df["month"] = df["game_datetime"].dt.month
     return df
