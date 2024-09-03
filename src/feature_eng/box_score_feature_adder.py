@@ -94,6 +94,7 @@ class BoxScoreFeatureAdder:
                     days_rest = 200.0
                 # Apply calculated rest back to the main DataFrame
                 df.loc[i, f"{team}_days_rest"] = days_rest
+        df["rest_differential"] = df["home_days_rest"] - df["away_days_rest"]
         return df
 
     def __add_box_totals(self, df):
