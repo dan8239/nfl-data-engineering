@@ -1,12 +1,18 @@
+import importlib
+
 import numpy as np
 import pandas as pd
 
 from helpers import get_team_id
 
+importlib.reload(get_team_id)
+
 
 class TeamDataAggregator:
     def __init__(self, stat_db):
         self.stats_db = stat_db
+        self.stats_db = self.stats_db.sort_values(by="date", ascending=False)
+        print(self.stats_db["date"].head(5))
         self.team_ids = pd.read_csv("reference/team_ids.csv")
         self.skip_columns = ["team", "date"]
         self.dont_aggregate_columns = [
@@ -47,8 +53,8 @@ class TeamDataAggregator:
         team_stats = self.stats_db[
             (self.stats_db["team"] == tr_team_name) & (self.stats_db["date"] < date)
         ]
-        team_stats = team_stats.sort_values(by="date", ascending=False)
-        dup_cols = team_stats.drop(columns="date").columns
+
+        dup_cols = team_stats.drop(columns=self.dont_aggregate_columns).columns
         sampled_stats = team_stats.head(games_to_sample * 2).drop_duplicates(
             subset=dup_cols, keep="first"
         )

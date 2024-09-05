@@ -24,6 +24,7 @@ box_cols = [
     "home_score",
     "away_score",
 ]
+convert_cols_dct = {"venue_id": float, "home_venue_id": float, "away_venue_id": float}
 valid_team_names = pd.read_csv("reference/team_ids.csv")[
     "box_short_display_name"
 ].unique()
@@ -36,12 +37,18 @@ def __filter_samples(df):
     df = df[home_mask & away_mask]
     # remove preseason
     df = df[df["season_type"] != 1]
-    df = df[df["status_type_completed"]]
+    return df
+
+
+def __convert_cols(df):
+    for key, col_type in convert_cols_dct.items():
+        df[key] = df[key].astype(col_type)
     return df
 
 
 def preprocess(df):
     df = __filter_samples(df)
+    df = __convert_cols(df)
     df["game_datetime"] = pd.to_datetime(df["start_date"])
     df = df.sort_values(by="game_datetime")
     df["year"] = df["game_datetime"].dt.year

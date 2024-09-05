@@ -20,13 +20,12 @@ class BoxScoreFeatureAdder:
         self.stadium_df = stadium_df
 
     def __add_location_info(self, df, prefix):
+        print("adding location info")
         if prefix is None:
-            print("adding location info for venue")
             cols_to_add = ["latitude", "longitude", "timezone_shift", "timezone"]
             stad_df = self.stadium_df.copy()[["venue_id"] + cols_to_add]
             left_merge_col = "venue_id"
         elif (prefix == "home") | (prefix == "away"):
-            print(f"adding location info for {prefix} team")
             cols_to_add = ["latitude", "longitude", "timezone_shift"]
             stad_df = self.stadium_df.copy()[["venue_id"] + cols_to_add]
             renamer = {col: f"{prefix}_{col}" for col in cols_to_add}
@@ -60,6 +59,7 @@ class BoxScoreFeatureAdder:
     def __add_travel_distance(self, df):
         print("adding travel distance")
         for prefix in ["home", "away"]:
+            print(f"adding {prefix} travel")
             df[f"{prefix}_travel_distance"] = calc_distance.compute_distances(
                 lat1_series=df["latitude"],
                 lon1_series=df["longitude"],

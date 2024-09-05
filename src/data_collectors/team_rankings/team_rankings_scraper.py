@@ -12,8 +12,10 @@ class TeamRankingsScraper:
         print()
         print(os.getcwd())
         ssl._create_default_https_context = ssl._create_unverified_context
-        url_df = pd.read_excel("web_scrapers/team_rankings/urls_team_rankings.xlsx")
+        url_df = pd.read_excel("data_collectors/team_rankings/urls_team_rankings.xlsx")
         self.url_df = url_df.fillna("")
+        self.stats_df = None
+        self.stats_df_path = "../data/raw/tr_stats_short.xlsx"
 
     def __strip_team_names(self, df):
         """
@@ -196,7 +198,7 @@ class TeamRankingsScraper:
         """get all the table data for a single date
 
         Args:
-            date (str): YYYY-MM-DD
+            date (datetime):
 
         Returns:
             pd.DataFrame: data for all teams on one date in DF
@@ -230,3 +232,13 @@ class TeamRankingsScraper:
         all_stats_df = self.__replace_percentage_strings(all_stats_df)
         print(all_stats_df.shape)
         return all_stats_df
+
+    def append_date_to_database(self, date):
+        if self.stats_df is None:
+            print("reading stats db")
+            stats_df = pd.read_excel(self.stats_df_path)
+            print(f"existing stats db shape: {stats_df.shape}")
+            self.stats_df = stats_df
+        df = self.get_all_tables_for_date(date)
+        stats_df = pd.concat([stats_df, df], ignore_index=True)
+        stats_df.to_excel(self.stats_df_path, index=False)

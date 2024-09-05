@@ -23,7 +23,7 @@ class MatchupCreator:
         self.home_stats = None
         self.road_stats = None
         self.diff_stats = None
-        self.matchup_month = None
+        self.date = None
 
     def create_matchup(
         self,
@@ -49,9 +49,10 @@ class MatchupCreator:
         pd.DataFrame
             dataframe w/ all the data collected and feature engineered
         """
-        if date.strftime("%Y-%m") != self.matchup_month:
-            self.matchup_month = date.strftime("%Y-%m")
-            print(f"creating matchups for {self.matchup_month}")
+        if date == date:
+            # print(f"{date}: {away_team_box_short_display_name} @ {home_team_box_short_display_name}. Creating matchup")
+            print(f"creating matchups for {date}")
+            self.date = date
         home_perf_summary_df = self.tda.summarize_team(
             date=date,
             team_box_short_display_name=home_team_box_short_display_name,
@@ -77,5 +78,5 @@ class MatchupCreator:
         combined_matchup_df = pd.concat(
             [home_perf_summary_df, road_perf_summary_df, perf_diff_df], axis=1
         )
-        combined_matchup_df["game_id"] = game_id
+        combined_matchup_df["game_id"] = int(game_id)
         return combined_matchup_df
