@@ -99,20 +99,20 @@ class BoxScoreFeatureAdder:
 
     def __add_box_totals(self, df):
         print("adding box totals")
-        df["score_differential"] = df["home_score"] - df["away_score"]
+        df["spread_result"] = df["home_score"] - df["away_score"]
         df["total_score"] = df["home_score"] + df["away_score"]
         return df
 
     def __add_spread_covers(self, df):
         print("adding spread results")
-        for spread in np.arange(20, -24.5, -0.5):
+        for spread in np.arange(24, -20.5, -0.5):
             prefix = ""
             if spread > 0:
                 prefix = "+"
-            df[f"{prefix}{spread}_home_cover"] = np.where(
-                df["score_differential"] + spread > 0,
+            df[f"{prefix}{spread}_away_cover"] = np.where(
+                df["spread_result"] < spread,
                 1,
-                np.where(df["score_differential"] + spread == 0, 0.5, 0),
+                np.where(df["spread_result"] == spread, 0.5, 0),
             )
         return df
 

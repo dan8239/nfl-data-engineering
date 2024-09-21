@@ -3,6 +3,10 @@ import pandas as pd
 team_id_df = pd.read_csv("reference/team_ids.csv")
 
 
+def get_team_mapper():
+    return team_id_df
+
+
 def get_ids(**kwargs):
     """
     Get a dict of all the different IDs from an input team ID.
