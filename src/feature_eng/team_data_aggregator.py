@@ -12,7 +12,6 @@ class TeamDataAggregator:
     def __init__(self, stat_db):
         self.stats_db = stat_db
         self.stats_db = self.stats_db.sort_values(by="date", ascending=False)
-        print(self.stats_db["date"].head(5))
         self.team_ids = pd.read_csv("reference/team_ids.csv")
         self.skip_columns = ["team", "date"]
         self.dont_aggregate_columns = [
@@ -25,6 +24,14 @@ class TeamDataAggregator:
             "rankings_sos_basic_rating",
             "rankings_luck_rating",
             "rankings_consistency_rating",
+        ]
+        self.stale_stats_check_columns = [
+            "offense_scoring_points_per_game",
+            "offense_scoring_yards_per_point",
+            "offense_scoring_points_per_play",
+            "defense_scoring_ppg",
+            "defense_scoring_yards_per_point",
+            "defense_scoring_points_per_play",
         ]
         self.sample = None
 
@@ -53,17 +60,19 @@ class TeamDataAggregator:
         team_stats = self.stats_db[
             (self.stats_db["team"] == tr_team_name) & (self.stats_db["date"] < date)
         ]
-
-        dup_cols = team_stats.drop(columns=self.dont_aggregate_columns).columns
         sampled_stats = team_stats.head(games_to_sample * 2).drop_duplicates(
-            subset=dup_cols, keep="first"
+            subset=self.stale_stats_check_columns, keep="first"
         )
         final_stats = sampled_stats.head(games_to_sample)
         self.sample = final_stats
         return final_stats
 
     def __aggregate_team_stats(
-        self, stat_df, aggregation_method="exp_weighted_mean", decay_factor=0.9
+        self,
+        stat_df,
+        aggregation_method="exp_weighted_mean",
+        decay_factor=0.9,
+        games_to_sample=None,
     ):
         """
         Take the stats dataframe and aggregate over all of the rows. Don't aggregate columns in the self.dont_aggregate_columns list,
@@ -85,10 +94,19 @@ class TeamDataAggregator:
         """
 
         # Define the exponential weighted mean function
-        def exp_weighted_mean(x):
-            n = len(x)
-            weights = np.array([decay_factor ** (n - i - 1) for i in range(n)])
-            return np.average(x, weights=weights)
+        def exp_weighted_mean(x, games_to_sample=None, min_weight=0):
+            n = len(x) if games_to_sample is None else min(games_to_sample, len(x))
+            weights = np.array(
+                [max(decay_factor ** (n - i - 1), min_weight) for i in range(n)]
+            )
+            return np.average(x[-n:], weights=weights)
+
+        def inv_log_weighted_mean(x, games_to_sample=None, min_weight=0):
+            n = len(x) if games_to_sample is None else min(games_to_sample, len(x))
+            weights = np.array(
+                [max(1 - (decay_factor ** (n - i)), min_weight) for i in range(n)]
+            )
+            return np.average(x[-n:], weights=weights)
 
         if not stat_df.empty:
             agg_columns = [
@@ -96,12 +114,14 @@ class TeamDataAggregator:
             ]
 
             if aggregation_method == "exp_weighted_mean":
-                # Apply the exponential weighted mean, ignoring NaNs
                 aggregated_data = stat_df[agg_columns].apply(
-                    lambda x: exp_weighted_mean(x)
+                    lambda x: exp_weighted_mean(x, games_to_sample)
+                )
+            elif aggregation_method == "inv_log_weighted_mean":
+                aggregated_data = stat_df[agg_columns].apply(
+                    lambda x: inv_log_weighted_mean(x, games_to_sample)
                 )
             else:
-                # Use the specified method (e.g., mean) if not exp_weighted_mean
                 aggregated_data = stat_df[agg_columns].agg(
                     aggregation_method, skipna=True
                 )
@@ -119,7 +139,7 @@ class TeamDataAggregator:
         date,
         team_box_short_display_name,
         games_to_sample,
-        aggregation_method="exp_weighted_mean",
+        aggregation_method="inv_log_weighted_mean",
         decay_factor=0.9,
     ):
         """
@@ -145,5 +165,6 @@ class TeamDataAggregator:
             stat_df=stats_df,
             aggregation_method=aggregation_method,
             decay_factor=decay_factor,
+            games_to_sample=games_to_sample,
         )
         return aggregated_stats

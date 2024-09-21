@@ -1,4 +1,5 @@
 import importlib
+from datetime import datetime
 
 import pandas as pd
 
@@ -23,7 +24,7 @@ class MatchupCreator:
         self.home_stats = None
         self.road_stats = None
         self.diff_stats = None
-        self.date = None
+        self.matchup_year = None
 
     def create_matchup(
         self,
@@ -49,10 +50,11 @@ class MatchupCreator:
         pd.DataFrame
             dataframe w/ all the data collected and feature engineered
         """
-        if date == date:
+        date_time = datetime.strptime(date, "%Y-%m-%dT%H:%MZ")
+        if date_time.year != self.matchup_year:
             # print(f"{date}: {away_team_box_short_display_name} @ {home_team_box_short_display_name}. Creating matchup")
-            print(f"creating matchups for {date}")
-            self.date = date
+            print(f"creating matchups for {date_time.year}")
+            self.matchup_year = date_time.year
         home_perf_summary_df = self.tda.summarize_team(
             date=date,
             team_box_short_display_name=home_team_box_short_display_name,
