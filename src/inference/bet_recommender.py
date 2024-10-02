@@ -30,17 +30,21 @@ class BetRecommender:
         )
         self.odds_to_tr_team_name_mapper["Washington Commanders"] = "Commanders"
         self.best_bet_cols = [
+            "game_id",
             "game_time",
             "away",
-            "spread_modeled",
-            "spread",
+            "away_spread_modeled",
+            "away_spread",
             "home",
+            "market",
             "outcome",
-            "price",
             "point",
+            "break_even_odds",
+            "price",
             "cover_pcnt",
             "expected_value",
             "ideal_bet_pcnt",
+            "ideal_bet_pcnt_diluted",
             "ideal_bet_amount",
             "ideal_bet_amount_diluted",
             "book",
@@ -49,7 +53,7 @@ class BetRecommender:
     def __get_books(self, odds_df):
         return sorted(list(odds_df["book"].unique()))
 
-    def get_predictions(self, year, week, refresh_predictions=False):
+    def __get_predictions(self, year, week, refresh_predictions=False):
         if refresh_predictions or (self.pred_df is None):
             pred_df = self.spread_model.get_predictions(
                 year=year, week=week, refresh_cache=refresh_predictions
@@ -66,7 +70,7 @@ class BetRecommender:
         df["away"] = df["away_team"]
         return df
 
-    def get_odds(self, refresh_odds):
+    def __get_odds(self, refresh_odds=False):
         if refresh_odds or self.odds_df is None:
             odds_df = get_odds.get_upcoming_nfl_odds()
             self.odds_df = odds_df
@@ -168,7 +172,7 @@ class BetRecommender:
             ev_table["expected_value"] * self.ev_dilution_factor
         ) / ev_table["profit_with_win"]
         ev_table["ideal_bet_amount"] = np.maximum(
-            0, ev_table["ideal_bet_pcnt"] * self.snack_amount
+            0, ev_table["ideal_bet_pcnt"] * self.stack_amount
         )
         ev_table["ideal_bet_amount_diluted"] = np.maximum(
             0, ev_table["ideal_bet_pcnt_diluted"] * self.stack_amount
@@ -181,26 +185,26 @@ class BetRecommender:
             ev_table["away_spread"] - ev_table["away_spread_modeled"]
         )
         ev_table["game"] = (
-            ev_table["away_team_short"]
+            ev_table["away"]
             + " "
             + ev_table["away_spread"].astype(str)
             + " @ "
-            + ev_table["home_team_short"]
+            + ev_table["home"]
         )
         ev_table["outcome"] = ev_table["outcome"].map(self.odds_to_tr_team_name_mapper)
-        self.ev_table = ev_table
-        return ev_table
-
-    def get_ev_table(self, year, week, refresh_predictions, refresh_odds):
-        self.get_predictions(
-            year=year, week=week, refresh_predictions=refresh_predictions
-        )
-        self.get_odds()
-        self.__merge_to_ev_table()
-        self.__postprocess_ev_table()
+        self.ev_table = ev_table.reset_index()
         return self.ev_table
 
-    def get_best_odds(self, all_books=False):
+    def get_ev_table(self, year, week, refresh_predictions=False, refresh_odds=False):
+        self.__get_predictions(
+            year=year, week=week, refresh_predictions=refresh_predictions
+        )
+        self.__get_odds(refresh_odds=refresh_odds)
+        ev_table = self.__merge_to_ev_table()
+        self.__postprocess_ev_table(ev_table)
+        return self.ev_table
+
+    def get_best_bets(self, all_books=False):
         if all_books:
             books = self.books
         else:
@@ -217,3 +221,13 @@ class BetRecommender:
         )
         self.best_bets = best_bets
         return best_bets
+
+    def get_bets(self, year, week, refresh_predictions=False, refresh_odds=False):
+        self.get_ev_table(
+            year=year,
+            week=week,
+            refresh_predictions=refresh_predictions,
+            refresh_odds=refresh_odds,
+        )
+        self.get_best_bets()
+        return self.best_bets
