@@ -1,0 +1,47 @@
+from typing import Type
+from data_collectors import data_collector
+from s3_io import s3_client
+import dotenv
+import os
+
+dotenv.load_dotenv()
+
+class Fetcher:
+    def __init__(self, 
+                 data_collector: Type[DataCollector],
+                 aws_folder_prefix: str,
+                 file_name_prefix: str,
+                 ) -> None:
+        """
+        Initializes the Fetcher with a DataCollector, S3Client, and S3 destination details.
+
+        Parameters:
+        - data_collector (DataCollector): A data collector object that fetches the data.
+        - date (str): yyyy-mm-dd of collection time
+        """
+        self.aws_folder_prefix = aws_folder_prefix
+        self.file_name_prefix = file_name_prefix
+        self.data_collector = data_collector
+        self.s3_client = s3_client.S3Client()
+        self.bucket_name = os.environ.get("AWS_BUCKET_NAME")
+
+    def fetch_and_write(self, datetime: pd.Datetime) -> None:
+        """
+        Fetches data from the DataCollector and writes it to S3 as a Parquet file.
+        """
+        year = datetime.year
+        month = datetime.month
+        date = datetime.date
+        hour = datetime.hour
+        minute = datetime.minute
+        try:
+            df = self.data_collector.collect()
+            file_name = f"{self.aws_bucket_prefix}/{year}/{month}/{date}/{hour}_{minute}_{self.file_name_prefix}.parquet"
+            self.s3_client.write_df_as_parquet(df=df, 
+                                               bucket_name=self.bucket_name, 
+                                               file_name=file_name)
+            print(f"Data from {self.data_collector.__class__.__name__} written to {self.bucket_name}/{self.file_name}.")
+        
+        except Exception as e:
+            print(f"Error in fetch_and_write for {self.data_collector.__class__.__name__}: {e}")
+            raise  # Re-raise the exception after logging

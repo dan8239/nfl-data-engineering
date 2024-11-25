@@ -196,3 +196,6 @@ cython_debug/
 .vscode
 input
 output
+
+poetry.lock
+pyproject.toml

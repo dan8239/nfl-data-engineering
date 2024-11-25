@@ -1,10 +1,10 @@
 import asyncio
 
 import pandas as pd
-
-from data_collectors import game_collector
-from data_collectors.team_rankings import team_rankings_scraper
 from date_functions import date_functions
+
+from data_clients.team_rankings import team_rankings_scraper
+from src.data_clients.box_scores import box_score_cllector
 
 
 async def run():
@@ -34,5 +34,5 @@ def handler(event, context):
 
 if __name__ == "__main__":
     # handler(event=None, context=None)
-    gc = game_collector.GameCollector()
+    gc = box_score_cllector.GameCollector()
     gc.collect()
