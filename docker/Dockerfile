@@ -4,6 +4,8 @@ FROM public.ecr.aws/lambda/python:3.11
 ENV POETRY_HOME="/opt/poetry"
 ENV PATH="$POETRY_HOME/bin:$PATH"
 ENV POETRY_VIRTUALENVS_IN_PROJECT=true
+ENV VIRTUAL_ENV="/opt/python"
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Install system dependencies and Poetry
 RUN yum install -y gcc gcc-c++ make libffi-devel python3-devel \
@@ -15,11 +17,8 @@ WORKDIR /var/task
 # Copy only necessary files for Poetry to install dependencies
 COPY pyproject.toml README.md ./
 
-# Set the VIRTUAL_ENV to /opt/python so Poetry installs dependencies directly there
-ENV VIRTUAL_ENV="/opt/python"
-
-# Install dependencies with Poetry, excluding dev dependencies
-RUN poetry install --no-interaction --without dev
+# Install dependencies with Poetry, installing them directly to /opt/python
+RUN poetry install --no-interaction --without dev --install-option="--prefix=/opt/python"
 
 # Copy the rest of your source code to the container
 COPY src .
