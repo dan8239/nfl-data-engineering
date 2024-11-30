@@ -9,7 +9,7 @@ RUN yum install -y gcc gcc-c++ make libffi-devel python3-devel \
 WORKDIR /var/task
 
 COPY pyproject.toml README.md ./
-RUN poetry install --no-interaction --only main
+RUN poetry install --no-interaction
 
 COPY src .
 
