@@ -16,7 +16,7 @@ WORKDIR /var/task
 COPY pyproject.toml README.md ./
 
 # Install dependencies with Poetry (without creating a virtualenv)
-RUN poetry install --no-interaction --no-root --no-dev --prefer-poetry
+RUN poetry install --no-interaction --no-root
 
 # Copy your source code to the container
 COPY src .
