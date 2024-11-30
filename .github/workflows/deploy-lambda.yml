@@ -27,20 +27,26 @@ jobs:
 
     - name: Create or Update Lambda
       run: |
-        if ! aws lambda get-function --function-name nfl-data-engineering; then
+        export AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+        export AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        export AWS_REGION=${{ secrets.AWS_REGION }}
+        if ! aws lambda get-function --function-name nfl-data-engineering --region ${{ secrets.AWS_REGION }}; then
           aws lambda create-function \
             --function-name nfl-data-engineering \
             --package-type Image \
             --code ImageUri=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/nfl-data-engineering:latest \
             --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/lambda-and-s3-full-access \
             --timeout 15 \
-            --memory-size 512
+            --memory-size 512 \
+            --region ${{ secrets.AWS_REGION }}
         else
           aws lambda update-function-code \
             --function-name nfl-data-engineering \
-            --image-uri ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/nfl-data-engineering:latest
+            --image-uri ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/nfl-data-engineering:latest \
+            --region ${{ secrets.AWS_REGION }}
         fi
-        
+
+        # Hardcoded environment variables for Lambda
         aws lambda update-function-configuration \
           --function-name nfl-data-engineering \
           --environment Variables="AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }},AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }},AWS_REGION=${{ secrets.AWS_REGION }},AWS_ACCOUNT_ID=${{ secrets.AWS_ACCOUNT_ID }},AWS_BUCKET_NAME=${{ secrets.AWS_BUCKET_NAME }},ODDS_API_KEY=${{ secrets.ODDS_API_KEY }}" \
