@@ -17,8 +17,8 @@ WORKDIR /var/task
 # Copy only necessary files for Poetry to install dependencies
 COPY pyproject.toml README.md ./
 
-# Install dependencies with Poetry, installing them directly to /opt/python
-RUN poetry install --no-interaction --without dev --install-option="--prefix=/opt/python"
+# Install dependencies with Poetry, excluding dev dependencies
+RUN poetry install --no-interaction --without dev
 
 # Copy the rest of your source code to the container
 COPY src .
