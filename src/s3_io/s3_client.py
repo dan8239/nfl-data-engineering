@@ -18,6 +18,8 @@ class S3Client:
         self.aws_access_key_id = os.environ.get("AWS_ACCESS_KEY_ID")
         self.aws_secret_access_key = os.environ.get("AWS_SECRET_ACCESS_KEY")
         self.region_name = os.environ.get("AWS_REGION_NAME")
+        local_exec = os.environ.get("LOCAL_EXECUTION", "false").lower() == "true"
+        self.local_execution = local_exec
         self.s3_client = None
         self.initialize_session()
 
@@ -26,12 +28,15 @@ class S3Client:
         Initialize the S3 session with provided credentials and region.
         """
         try:
-            self.s3_client = boto3.client(
-                "s3",
-                aws_access_key_id=self.aws_access_key_id,
-                aws_secret_access_key=self.aws_secret_access_key,
-                region_name=self.region_name,
-            )
+            if self.local_execution:
+                self.s3_client = boto3.client(
+                    "s3",
+                    aws_access_key_id=self.aws_access_key_id,
+                    aws_secret_access_key=self.aws_secret_access_key,
+                    region_name=self.region_name,
+                )
+            else:
+                self.s3_client = boto3.client("s3")
             print(f"Successfully initialized session for region: {self.region_name}")
         except (NoCredentialsError, PartialCredentialsError) as e:
             print(f"Error initializing session: {e}")
