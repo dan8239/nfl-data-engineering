@@ -32,9 +32,8 @@ jobs:
       run: |
         docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/nfl-data-engineering:latest
 
-    - name: Create or Update Lambda
+    - name: Create or Update Lambda (Code)
       run: |
-        # Create or update the Lambda function
         if ! aws lambda get-function --function-name nfl-data-engineering --region ${{ secrets.AWS_REGION }}; then
           aws lambda create-function \
             --function-name nfl-data-engineering \
@@ -51,7 +50,14 @@ jobs:
             --region ${{ secrets.AWS_REGION }}
         fi
 
-        # Final Lambda update with environment variables
+    - name: Wait for Lambda Update Completion
+      run: |
+        aws lambda wait function-updated \
+          --function-name nfl-data-engineering \
+          --region ${{ secrets.AWS_REGION }}
+
+    - name: Update Lambda Configuration (Environment Variables)
+      run: |
         aws lambda update-function-configuration \
           --function-name nfl-data-engineering \
           --environment "Variables={
