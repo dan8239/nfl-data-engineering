@@ -2,7 +2,7 @@ FROM public.ecr.aws/lambda/python:3.11
 
 ENV POETRY_HOME="/opt/poetry"
 ENV PATH="$POETRY_HOME/bin:$PATH"
-ENV POETRY_VIRTUALENVS_IN_PROJECT=true
+ENV POETRY_VIRTUALENVS_IN_PROJECT=false
 
 RUN yum install -y gcc gcc-c++ make libffi-devel python3-devel \
     && curl -sSL https://install.python-poetry.org | python3 -
