@@ -9,7 +9,7 @@ RUN yum install -y gcc gcc-c++ make libffi-devel python3-devel \
 
 WORKDIR /var/task
 
-COPY pyproject.toml poetry.lock ./
+COPY pyproject.toml ./
 
 RUN poetry install --no-dev --no-interaction --no-ansi
 
