@@ -1,0 +1,25 @@
+[tool.poetry]
+name = "nfl data engineering"
+version = "0.1.0"
+description = "data engineering pipeline"
+authors = ["dan8239 <daniel.joseph.pfeiffer@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.2.3"
+boto3 = "^1.35.68"
+loguru = "^0.7.2"
+python-dotenv = "^1.0.1"
+requests = "^2.32.3"
+
+
+[tool.poetry.group.dev.dependencies]
+isort = "^5.13.2"
+black = "^24.10.0"
+flake8 = "^7.1.1"
+pre-commit = "^4.0.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

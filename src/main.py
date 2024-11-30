@@ -1,38 +1,28 @@
-import asyncio
+from datetime import datetime
 
-import pandas as pd
-from date_functions import date_functions
+import pytz
 
-from data_clients.team_rankings import team_rankings_scraper
-from src.data_clients.box_scores import box_score_cllector
+from data_collectors import odds_data_collector
 
 
-async def run():
-    # df = await vsin_scraper.get_vsin_game_lines()
-    wed_list = date_functions.filter_dates(
-        start_date_str="2023-08-30", day_of_week="Wednesday"
-    )
-    team_df_list = []
-    scr = team_rankings_scraper.TeamRankingsScraper()
-    for wed in wed_list:
-        date_str = wed.strftime("%Y-%m-%d")
-        print(f"Loading for {date_str}")
-        df = scr.get_all_tables_for_date(date=wed)
-        team_df_list.append(df)
-        print("Saving one week data")
-        df.to_excel(f"../output/one_week_stats_{date_str}.xlsx", index=False)
-    print("Appending to other tables")
-    team_df = pd.concat(team_df_list, ignore_index=True)
-    print(f"All Dates DF Shape: {team_df.shape}")
-    print("Saving combined data")
-    team_df.to_excel(f"../output/team_stats_{date_str}.xlsx", index=False)
+def run_odds_dc(datetime):
+    odc = odds_data_collector.OddsDataCollector()
+    odc.collect(datetime)
+
+
+collector_map = {"odds_data_collector": run_odds_dc}
 
 
 def handler(event, context):
-    asyncio.get_event_loop().run_until_complete(run())
+    collectors_to_run = event.get("collectors_to_run")
+    utc_now = datetime.now(pytz.utc)
+    central_now = utc_now.astimezone(pytz.timezone("US/Central"))
+
+    eligible_collectors = collector_map.keys()
+    for collector in collectors_to_run:
+        if collector in eligible_collectors:
+            collector_map.get(collector)(central_now)
 
 
 if __name__ == "__main__":
-    # handler(event=None, context=None)
-    gc = box_score_cllector.GameCollector()
-    gc.collect()
+    handler(event={"collectors_to_run": ["odds_data_collector"]}, context=None)

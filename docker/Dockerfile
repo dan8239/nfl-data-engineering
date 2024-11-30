@@ -1,14 +1,18 @@
-FROM public.ecr.aws/e0a2p4z8/lambda-layer-read-from-ssm-python:1.0.0 as layer
-FROM public.ecr.aws/lambda/python:3.9
-COPY --from=layer /opt/fetch_ssm_parameters /opt/fetch_ssm_parameters
-ENV AWS_LAMBDA_EXEC_WRAPPER=/opt/fetch_ssm_parameters/fetch-ssm-parameters.py
+FROM public.ecr.aws/lambda/python:3.11-arm64
 
-RUN yum -y install git
-ARG GITHUB_READ_TOKEN
+ENV POETRY_HOME="/opt/poetry"
+ENV PATH="$POETRY_HOME/bin:$PATH"
+ENV POETRY_VIRTUALENVS_IN_PROJECT=true
 
-COPY requirements.txt .
-RUN pip3 install -r requirements.txt
-COPY src   .
-COPY test  .
+RUN yum install -y gcc gcc-c++ make libffi-devel python3-devel \
+    && curl -sSL https://install.python-poetry.org | python3 -
 
-CMD ["main.handler"]
+WORKDIR /var/task
+
+COPY pyproject.toml poetry.lock ./
+
+RUN poetry install --no-dev --no-interaction --no-ansi
+
+COPY src .
+
+CMD ["src.main.handler"]

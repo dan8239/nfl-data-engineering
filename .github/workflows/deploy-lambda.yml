@@ -1,0 +1,53 @@
+name: Build and Deploy Lambda
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
+    - name: Login to Amazon ECR
+      id: login-ecr
+      uses: aws-actions/amazon-ecr-login@v2
+
+    - name: Build Docker Image
+      run: |
+        docker build -t ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/nfl-data-engineering:latest .
+
+    - name: Push to ECR
+      run: |
+        docker push ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/nfl-data-engineering:latest
+
+    - name: Create or Update Lambda
+      uses: aws-actions/aws-cli-action@v2
+      with:
+        aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+        aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+        aws-region: ${{ secrets.AWS_REGION }}
+        command: |
+          if ! aws lambda get-function --function-name nfl-data-engineering; then
+            aws lambda create-function \
+              --function-name nfl-data-engineering \
+              --package-type Image \
+              --code ImageUri=${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/nfl-data-engineering:latest \
+              --role arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/lambda-and-s3-full-access \
+              --timeout 15 \
+              --memory-size 512
+          else
+            aws lambda update-function-code \
+              --function-name nfl-data-engineering \
+              --image-uri ${{ secrets.AWS_ACCOUNT_ID }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/nfl-data-engineering:latest
+          fi
+          
+          ENV_VARS=$(echo ${{ secrets.LAMBDA_ENV_VARS }} | jq -r 'to_entries | map("\(.key)=\(.value)") | .[:]' | paste -sd, -)
+          
+          aws lambda update-function-configuration \
+            --function-name nfl-data-engineering \
+            --environment Variables="$ENV_VARS"
