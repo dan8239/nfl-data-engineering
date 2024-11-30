@@ -15,4 +15,4 @@ RUN poetry install --no-dev --no-interaction --no-ansi
 
 COPY src .
 
-CMD ["src.main.handler"]
+CMD ["main.handler"]
