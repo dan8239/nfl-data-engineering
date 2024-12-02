@@ -12,7 +12,7 @@ class TeamRankingsScraper:
         print()
         print(os.getcwd())
         ssl._create_default_https_context = ssl._create_unverified_context
-        url_df = pd.read_excel("data_collectors/team_rankings/urls_team_rankings.xlsx")
+        url_df = pd.read_excel("data_clients/team_rankings/urls_team_rankings.xlsx")
         self.url_df = url_df.fillna("")
         self.stats_df = None
         self.stats_df_path = "../data/raw/tr_stats_short.xlsx"
@@ -194,6 +194,12 @@ class TeamRankingsScraper:
         )
         return df
 
+    def __obj_cols_to_str(self, df):
+        for col in df.columns:
+            if df[col].dtype == "object":
+                df[col] = df[col].astype(str)
+        return df
+
     def get_all_tables_for_date(self, date):
         """get all the table data for a single date
 
@@ -230,6 +236,7 @@ class TeamRankingsScraper:
         all_stats_df = self.__add_date_to_df(all_stats_df, date)
         all_stats_df = self.__replace_weird_symbols(all_stats_df)
         all_stats_df = self.__replace_percentage_strings(all_stats_df)
+        all_stats_df = self.__obj_cols_to_str(all_stats_df)
         print(all_stats_df.shape)
         return all_stats_df
 
