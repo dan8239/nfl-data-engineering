@@ -159,20 +159,12 @@ df = s3c.read_dataframe_from_s3(
 )
 ```
 
-## Data Migration
+## Data Storage Best Practices
 
-If you have existing daily-partitioned data, use the migration script to consolidate it into monthly partitions:
-
-```bash
-python src/migrate_to_monthly_partitions.py
-```
-
-This script:
-- Reads all daily files from old structure (`YYYY/MM/DD/*.parquet`)
-- Consolidates by month
-- Deduplicates records (keeps latest by timestamp)
-- Writes to new structure (`year=YYYY/month=MM/data.parquet`)
-- Normalizes data types to prevent mixed-type errors
+- Monthly partitions automatically handle deduplication on each collection run
+- The `timestamp` column preserves collection history within each month
+- Parquet column pruning allows efficient partial reads (specify `columns` parameter)
+- For time-range queries, calculate required months and read only those partitions
 
 ## Scheduled Execution
 
@@ -220,8 +212,7 @@ nfl-data-engineering/
 │   │   ├── weather/
 │   │   └── box_scores/
 │   ├── data_collectors/       # Main collection orchestrators
-│   ├── s3_io/                 # S3 helper utilities
-│   └── migrate_to_monthly_partitions.py
+│   └── s3_io/                 # S3 helper utilities
 ├── test/
 ├── config/
 ├── events/
