@@ -4,7 +4,8 @@ ENV POETRY_HOME="/opt/poetry"
 ENV PATH="$POETRY_HOME/bin:$PATH"
 ENV POETRY_VIRTUALENVS_IN_PROJECT=true
 
-RUN dnf install -y gcc gcc-c++ make libffi-devel python3-devel \
+RUN dnf install -y gcc gcc-c++ gcc-gfortran make cmake libffi-devel python3-devel \
+    && dnf upgrade -y gcc gcc-c++ \
     && curl -sSL https://install.python-poetry.org | python3 -
 
 WORKDIR /var/task
