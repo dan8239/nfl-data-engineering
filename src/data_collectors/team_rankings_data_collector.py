@@ -22,6 +22,9 @@ class TeamRankingsDataCollector(data_collector.DataCollector):
         logger.info("getting stats")
         df = self.trs.get_all_tables_for_date(datetime)
 
+        # Clean data: replace empty strings with NaN for proper Parquet conversion
+        df = df.replace('', pd.NA)
+
         # Add collection timestamp to the data
         df['timestamp'] = datetime
 

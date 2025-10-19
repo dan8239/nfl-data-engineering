@@ -42,6 +42,63 @@ class S3Client:
             print(f"Error initializing session: {e}")
             raise
 
+    def _convert_dataframe_types(self, df):
+        """
+        Convert DataFrame column types to ensure Parquet compatibility.
+        Handles mixed types, object columns, and ensures proper type conversion.
+
+        :param df: The Pandas DataFrame to convert (Pandas DataFrame).
+        :return: DataFrame with properly typed columns (Pandas DataFrame).
+        """
+        df = df.copy()
+
+        for col in df.columns:
+            # Skip if already a proper numeric type
+            if pd.api.types.is_numeric_dtype(df[col]) and df[col].dtype != object:
+                continue
+
+            # Try to convert to numeric first (handles strings like '123', '45.6', etc.)
+            try:
+                # This will convert numeric strings to numbers
+                converted = pd.to_numeric(df[col], errors='coerce')
+                # Only use the conversion if it successfully converted some non-null values
+                if not converted.isna().all() and not df[col].equals(converted):
+                    # Check if original had any valid numeric-like strings
+                    if converted.notna().any():
+                        df[col] = converted
+                        continue
+            except Exception:
+                pass
+
+            # Handle object dtype columns
+            if df[col].dtype == object:
+                # Try to infer the best type
+                try:
+                    df[col] = df[col].infer_objects(copy=False)
+                except Exception:
+                    pass
+
+                # If still object type, ensure all values are properly typed
+                if df[col].dtype == object:
+                    # Replace empty strings with NaN
+                    df[col] = df[col].replace('', pd.NA)
+
+                    # Try numeric conversion one more time
+                    try:
+                        converted = pd.to_numeric(df[col], errors='coerce')
+                        if not converted.isna().all():
+                            df[col] = converted
+                            continue
+                    except Exception:
+                        pass
+
+                    # Convert to string as last resort, ensuring all values are strings
+                    df[col] = df[col].astype(str)
+                    # Replace 'None', 'nan', '<NA>' strings with actual NaN
+                    df[col] = df[col].replace(['None', 'nan', '<NA>', 'NaN'], pd.NA)
+
+        return df
+
     def push_dataframe_to_s3(self, df, bucket_name, s3_key):
         """
         Upload a Pandas DataFrame directly to S3 as a Parquet file.
@@ -53,6 +110,9 @@ class S3Client:
         :return: None
         """
         try:
+            # Convert DataFrame types to ensure Parquet compatibility
+            df = self._convert_dataframe_types(df)
+
             buffer = io.BytesIO()
             df.to_parquet(
                 buffer, engine="fastparquet", compression="snappy", index=False
@@ -62,6 +122,7 @@ class S3Client:
             print(f"DataFrame uploaded successfully to s3://{bucket_name}/{s3_key}")
         except Exception as e:
             print(f"Error uploading DataFrame to S3: {e}")
+            raise
 
     def read_dataframe_from_s3(self, bucket_name, s3_key, columns=None):
         """

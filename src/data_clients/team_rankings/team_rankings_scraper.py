@@ -70,7 +70,7 @@ class TeamRankingsScraper:
                     ]
                 else:
                     raise ValueError(f"Unexpected format in column '{col}'")
-                split_result = split_result.fillna(0)
+                split_result = split_result.infer_objects(copy=False).fillna(0)
                 split_result = split_result.astype(int)
                 df[f"{col}_games_played"] = (
                     split_result[f"{col}_wins"]
