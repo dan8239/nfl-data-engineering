@@ -27,19 +27,22 @@ class OddsDataCollector(data_collector.DataCollector):
         # Use year/month partitioning
         s3_key = f"data/raw/odds/year={datetime.year}/month={datetime.month:02d}/data.parquet"
 
-        # Read existing monthly data if it exists, then upsert
+        # Read existing monthly data if it exists, then append
         try:
             existing_df = self.s3c.read_dataframe_from_s3(
                 bucket_name=self.bucket, s3_key=s3_key
             )
             if existing_df is not None:
-                # Combine and remove duplicates (keep latest)
+                # Append new data to existing, keeping ALL historical timestamps
+                # This preserves odds from before games are played
                 combined_df = pd.concat([existing_df, odds_df], ignore_index=True)
-                combined_df = combined_df.drop_duplicates(
-                    subset=[col for col in combined_df.columns if col != 'timestamp'],
-                    keep='last'
-                )
+
+                # Only remove exact duplicates (same game, book, market, price, point, timestamp)
+                # This prevents double-writing if the job runs twice at the same time
+                combined_df = combined_df.drop_duplicates(keep='last')
+
                 odds_df = combined_df
+                logger.info(f"Appended {len(odds_df) - len(existing_df)} new odds rows to existing {len(existing_df)} rows")
         except Exception as e:
             logger.info(f"No existing file found or error reading: {e}. Creating new file.")
 
