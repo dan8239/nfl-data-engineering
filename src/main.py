@@ -26,11 +26,13 @@ def handler(event, context):
     collectors_to_run = event.get("collectors_to_run")
     date = event.get("date", None)
     if date:
+        # When date is explicitly provided, use it as-is in Central timezone
+        # to preserve the actual date (don't shift to previous day)
         dt = pd.to_datetime(date)
-        dt_utc = dt.tz_localize("UTC")
+        dt_central = dt.tz_localize(pytz.timezone("US/Central"))
     else:
         dt_utc = datetime.now(pytz.utc)
-    dt_central = dt_utc.astimezone(pytz.timezone("US/Central"))
+        dt_central = dt_utc.astimezone(pytz.timezone("US/Central"))
 
     eligible_collectors = collector_map.keys()
     for collector in collectors_to_run:
