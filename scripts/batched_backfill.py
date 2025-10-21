@@ -2,10 +2,16 @@
 """
 Backfill missing Tuesdays in batches to avoid race conditions.
 Only triggers Lambdas for different months simultaneously.
+
+Usage:
+    python scripts/batched_backfill.py
+    python scripts/batched_backfill.py --start-year 2024 --end-year 2025
+    python scripts/batched_backfill.py --start-date 2024-08-01 --end-date 2025-10-14
 """
 import sys
 import os
 import time
+import argparse
 from datetime import datetime, timedelta
 from collections import defaultdict
 
@@ -16,41 +22,83 @@ from src.s3_io.s3_client import S3Client
 from trigger_lambda import trigger_lambda
 
 
-def get_expected_tuesdays():
-    """Get all Tuesdays for NFL seasons (Aug-Feb, up to Oct 14 2025)."""
-    tuesdays = []
+def get_nfl_season_months(year):
+    """Get NFL season months for a given year (Aug-Mar)."""
+    return list(range(8, 13)) + list(range(1, 4))
 
-    # 2024-2025 Season: Aug 2024 - Feb 2025
-    for year in [2024, 2025]:
-        if year == 2024:
-            months = range(8, 13)  # Aug-Dec
+
+def get_expected_tuesdays(start_date=None, end_date=None, start_year=None, end_year=None):
+    """
+    Get all Tuesdays within a date range.
+
+    Args:
+        start_date: Start date (YYYY-MM-DD string or datetime)
+        end_date: End date (YYYY-MM-DD string or datetime)
+        start_year: Start year (will use Aug of this year)
+        end_year: End year (will use current month of this year)
+
+    Returns:
+        Sorted list of Tuesday dates
+    """
+    # Determine date range
+    if start_date and end_date:
+        if isinstance(start_date, str):
+            start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+        if isinstance(end_date, str):
+            end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+    elif start_year and end_year:
+        # NFL season: Aug of start_year through current month of end_year
+        start_date = datetime(start_year, 8, 1).date()
+        end_date = datetime.now().date()
+    else:
+        # Default: current NFL season (Aug of last year through today)
+        today = datetime.now().date()
+        current_year = today.year
+        # If we're before August, start from previous year's August
+        if today.month < 8:
+            start_date = datetime(current_year - 1, 8, 1).date()
         else:
-            months = [1, 2, 8, 9, 10]  # Jan-Feb, Aug-Oct
+            start_date = datetime(current_year, 8, 1).date()
+        end_date = today
 
-        for month in months:
-            date = datetime(year, month, 1)
-            # Find first Tuesday
-            while date.weekday() != 1:
-                date += timedelta(days=1)
-            # Collect all Tuesdays in this month
-            while date.month == month:
-                if date.date() <= datetime(2025, 10, 14).date():
-                    tuesdays.append(date.date())
-                date += timedelta(days=7)
+    # Find all Tuesdays in the date range
+    tuesdays = []
+    current = start_date
+
+    # Move to first Tuesday
+    while current.weekday() != 1:  # 1 = Tuesday
+        current += timedelta(days=1)
+
+    # Collect all Tuesdays until end_date
+    while current <= end_date:
+        tuesdays.append(current)
+        current += timedelta(days=7)
 
     return sorted(tuesdays)
 
 
-def get_existing_tuesdays(s3_client, bucket):
-    """Get existing Tuesday dates from S3.
+def get_existing_tuesdays(s3_client, bucket, start_year=None, end_year=None):
+    """
+    Get existing Tuesday dates from S3.
 
     Handles two schemas:
     - New schema: has 'date' column (date we scraped) and 'timestamp' (when Lambda ran)
     - Old schema: only has 'timestamp' column (use ET conversion to get Tuesday)
+
+    Args:
+        s3_client: S3Client instance
+        bucket: S3 bucket name
+        start_year: Start year to check (defaults to 2 years ago)
+        end_year: End year to check (defaults to current year)
     """
+    if start_year is None:
+        start_year = datetime.now().year - 2
+    if end_year is None:
+        end_year = datetime.now().year
+
     existing = set()
 
-    for year in [2024, 2025]:
+    for year in range(start_year, end_year + 1):
         for month in range(1, 13):
             s3_key = f"data/raw/team_rankings/year={year}/month={month:02d}/data.parquet"
 
@@ -88,14 +136,56 @@ def get_existing_tuesdays(s3_client, bucket):
 
 
 def main():
+    parser = argparse.ArgumentParser(
+        description="Backfill missing Tuesday data by triggering Lambda functions in batches"
+    )
+    parser.add_argument(
+        "--start-date",
+        help="Start date (YYYY-MM-DD)"
+    )
+    parser.add_argument(
+        "--end-date",
+        help="End date (YYYY-MM-DD)"
+    )
+    parser.add_argument(
+        "--start-year",
+        type=int,
+        help="Start year (will use Aug of this year as start)"
+    )
+    parser.add_argument(
+        "--end-year",
+        type=int,
+        help="End year (will use today as end)"
+    )
+    parser.add_argument(
+        "--bucket",
+        default=os.environ.get("AWS_BUCKET_NAME", "djp-nfl-model"),
+        help="S3 bucket name (default: from AWS_BUCKET_NAME env or 'djp-nfl-model')"
+    )
+
+    args = parser.parse_args()
+
     s3_client = S3Client()
-    bucket = "djp-nfl-model"
 
     print("Checking current Tuesday coverage...")
     print("=" * 80)
 
-    expected = get_expected_tuesdays()
-    existing = get_existing_tuesdays(s3_client, bucket)
+    # Get expected Tuesdays based on provided arguments
+    expected = get_expected_tuesdays(
+        start_date=args.start_date,
+        end_date=args.end_date,
+        start_year=args.start_year,
+        end_year=args.end_year
+    )
+
+    # Determine year range for S3 check
+    if expected:
+        start_year = min(d.year for d in expected)
+        end_year = max(d.year for d in expected)
+    else:
+        start_year = end_year = datetime.now().year
+
+    existing = get_existing_tuesdays(s3_client, args.bucket, start_year, end_year)
     missing = sorted([d for d in expected if d not in existing])
 
     print(f"Expected Tuesdays: {len(expected)}")
@@ -164,7 +254,7 @@ def main():
 
     # Verify
     print("\nVerifying results...")
-    existing_after = get_existing_tuesdays(s3_client, bucket)
+    existing_after = get_existing_tuesdays(s3_client, args.bucket, start_year, end_year)
     still_missing = sorted([d for d in expected if d not in existing_after])
 
     print(f"Tuesdays now present: {len(existing_after)}/{len(expected)}")
