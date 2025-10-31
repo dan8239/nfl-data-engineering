@@ -3,6 +3,7 @@ import os
 import dotenv
 import pandas as pd
 import requests
+from loguru import logger
 
 dotenv.load_dotenv()
 
@@ -11,7 +12,7 @@ __base_url = "https://api.the-odds-api.com/v4/sports"
 
 
 def __request_upcoming_nfl_odds_us():
-    url = f"{__base_url}/americanfootball_nfl/odds/?apiKey={__api_key}&regions=us&markets=h2h,spreads&oddsFormat=american"
+    url = f"{__base_url}/americanfootball_nfl/odds/?apiKey={__api_key}&regions=us&markets=h2h,spreads,totals&oddsFormat=american"
     payload = {}
     headers = {}
     response = requests.request("GET", url, headers=headers, data=payload)
@@ -25,7 +26,7 @@ def __request_upcoming_nfl_odds_us():
 
 
 def __request_upcoming_nfl_odds_us2():
-    url = f"{__base_url}/americanfootball_nfl/odds/?apiKey={__api_key}&regions=us2&markets=h2h,spreads&oddsFormat=american"
+    url = f"{__base_url}/americanfootball_nfl/odds/?apiKey={__api_key}&regions=us2&markets=h2h,spreads,totals&oddsFormat=american"
     payload = {}
     headers = {}
     response = requests.request("GET", url, headers=headers, data=payload)
@@ -57,12 +58,26 @@ def __response_to_df(response):
                     }
                     dct_list.append(row_dict)
     df = pd.DataFrame(dct_list)
-    df["point"].fillna(0.0, inplace=True)
+    df["point"] = df["point"].fillna(0.0)
     df.sort_values(
         by=["game_time", "game_id", "outcome", "point", "price"],
         ascending=[True, True, True, False, False],
         inplace=True,
     )
+
+    # Log market types found to help detect missing markets
+    if not df.empty:
+        markets_found = df['market'].unique()
+        logger.info(f"Markets found in response: {list(markets_found)}")
+
+        # Check for expected markets
+        expected_markets = {'h2h', 'spreads', 'totals'}
+        missing_markets = expected_markets - set(markets_found)
+        if missing_markets:
+            logger.warning(f"Expected markets missing from response: {missing_markets}")
+    else:
+        logger.warning("No odds data returned from API")
+
     return df
 
 
